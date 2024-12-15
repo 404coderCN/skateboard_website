@@ -24,20 +24,17 @@ post_limit: 5
 title : World's best electric skateboard
 tagline: Made by the incredible Luoyan Zhong and Jerry Jin
 author : 
-  name : Antonio Trento
-  site: https://lantoniotrento.github.io
-  description : I&#39;m a web master interested in communication applied to web marketing.
-  image : social-image.png
-  email : lantoniotrento@gmail.com
-  github : antoniotrento
-  twitter : lantoniotrento
-  facebook: lantoniotrento
-  linkedin: antoniotrento
-  instagram: lantoniotrento
-  pinterest: antoniotrento
-  feedburner : 
+  name : Jerry Jin
+  site: https://404codercn.github.io
+  description : Duh
+  # image : social-image.png
+  email : yj253@cornell.com
+  github : 404codercn
+  facebook: Jerry Jin
+  linkedin: yitingjin
+  instagram: jerry_is_hottttt
 
-twitter_username: lantoniotrento
+# twitter_username: lantoniotrento
 # The production_url is only used when full-domain names are needed
 # such as sitemap.txt
 # Most places will/should use BASE_PATH to make the urls
