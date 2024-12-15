@@ -7,8 +7,8 @@ highlighter: null
 markdown: kramdown
 extensions: [fenced_code_blocks]
 excerpt_separator: "<!--more-->"
-url: https://heliumjk.github.io
-baseurl: "/heliumjk.github.io"
+url: https://404codercn.github.io/ 
+baseurl: 'skateboard_website.github.io'
 # Themes are encouraged to use these universal variables
 # so be sure to set them if your theme uses them.
 #
@@ -21,8 +21,8 @@ google_ad_client:
 post_limit: 5
 
 
-title : Helium Jekyll
-tagline: Bootstrap 4 UI kit for jekyll
+title : World's best electric skateboard
+tagline: Made by the incredible Luoyan Zhong and Jerry Jin
 author : 
   name : Antonio Trento
   site: https://lantoniotrento.github.io
