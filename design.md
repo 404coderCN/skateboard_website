@@ -30,12 +30,12 @@ The first thing we did after getting our hands on the skateboard was to test whe
 
 We initially tested the motor using a small ESC designed for RC planes. To achieve greater precision, we opted for the hardware PWM library instead of the conventional software PWM provided by the RPi.GPIO library. After navigating through a series of tedious calibration steps, we finally managed to control the motor speed by sending 50 Hz PWM signals with duty cycles ranging between 1 ms and 2 ms. However, this ESC utilized an older digital protocol that required recalibration every time motor power was interrupted. Additionally, it couldn't handle the input voltage from the large 25.2V, 5.2Ah battery on the skateboard. Considering our budget constraints, we made a bold—albeit in hindsight, naive—decision: to build our own ESC.
 
-![Brushless motor working mechanism](/skateboard_website/assets/images/blog/brushless_motor.gif) {width=300px}
+![Brushless motor working mechanism](/skateboard_website/assets/images/blog/brushless_motor.gif)
 
 ## Building an ESC
 Our confidence in building an ESC stems from the fact that most ESCs on the market operate in a similar manner. The circuit typically uses three gate drivers to control six MOSFETs, arranged in a three-phase bridge configuration. The gate drivers ensure precise switching of the MOSFETs at the correct time to energize the motor phases. Capacitors are added across the power supply lines to smooth out voltage fluctuations caused by rapid switching, protecting the components from voltage spikes and ensuring stable operation. Resistors are included to limit inrush current to the MOSFET gates, prevent ringing, and fine-tune the switching speed to minimize heat and energy loss. A microcontroller would be used to send out three PWM signals to control the siwtching of the hree gate drivers. A typical ESC circuit is show below.
 
-<img src="{{ BASE_PATH }}/assets/images/blog/esc_circuit.png" alt="ESC circuit" width= "450" height="320">
+<img src="{{ BASE_PATH }}/assets/images/blog/esc_circuit.png" alt="ESC circuit" width= "450" height="380">
 
 We chose the Arduino Nano as the microcontroller for the ESC due to its compact size and ease of use. The gate driver and MOSFETs are soldered onto a protoboard following the schematic below. The three inputs to the gate drivers are connected to digital GPIO pins on the Nano, while the three outputs are linked to the motor's three-phase wires.
 
@@ -56,8 +56,38 @@ After several rounds of testing, we unfortunately burned one of the gate drivers
 With the newly-arrived ESC, we were quickly able to start running our motor. The subsequent development of our project could be separated into three different parts based on functionality: (1)Bluetooth communication between controller and skatebaord, (2) Obstacle detcection, and (3) Smart power-on. A high-level overview of our system is presented below.
 
 ### Bluetooth communication
-The first thing our skateboard must be able to do is to receive speed information from the controller and use it to adjust the PWM signal to the motor in order to run it at different speeds. As we have decided to use an ESP32 to control the remote controller and mount the Raspberry Pi on the skateboard, we need to find a wireless communication method in common between these two microcontrollers. After evaluating connection distance and network reuqirement, we landed on using Bluetooth. We started by setting the ESP32 as the master device and made use of the BluetoothSerial library. We start the bluetooth service on ESP32 by assigning it a recognizable name and have it continuously check the surrounding network for any available clients. On the Raspberry Pi side, we imported the bluetooth library and scan the surrounding to look for device with the name matching our ESP32. When a match is detected, the raspberry pi will connect with the device on RFCOMM channel 1. 
+The first objective for our skateboard was to receive speed information from the controller and adjust the PWM signal to the motor to control its speed. Since we decided to use an ESP32 as the remote controller and a Raspberry Pi mounted on the skateboard, we needed a reliable wireless communication method compatible with both microcontrollers. After evaluating connection distance and network requirements, we chose Bluetooth.
 
-With the bluetooth connection established, we need to consider in what form should we send and interpret the data. Our remote contorller was designed to incorporate a joystick, allowing flexible speed control, and three buttons for three set speeds: brake, half speed, and full speed. Whenever a user moves the joystick up the y-axis, increasing its Y_out vlaue, we want the skateboard to go faster, menaing we have to increase the duty cycle. And we want the skateboard to slow down as the joystick returns to its original position. Additinally, pressing the buttons on the controller should set and maintain the skateboard at the corrsponding speed. Since the joystick requires continuous monitoring of the Y_out pin, and its analog value changes frquently as the joystick moves, we decided to check the input pin by polling and map it to some speed base on differet thresholds. As the buttons are less likely to get frequently pressed, we used interrupts to capture the state of each of the buttons, and assign each interrupt with their corresponding set speed. By connecting one side of each button to a GPIO pin and setting the pull-up resistors in the microcontroller, we can simply monitor falling edge to trigger the respective interrupt service. With this setup, the controller continuously send out these speed values as they get updated by either joystick movements or button press. 
+We began by configuring the ESP32 as the master device, utilizing the BluetoothSerial library. The ESP32 starts the Bluetooth service by assigning it a recognizable name and continuously scans for available clients in the vicinity. On the Raspberry Pi side, we imported the Bluetooth library and scanned for devices matching the ESP32’s name. Once a match was found, the Raspberry Pi connected to the ESP32 over RFCOMM channel 1.
 
-On the Raspberry pi side, we take in 800 bytes of data from the Bluetooth channel at once and decode it in "utf-8" format. Because the speed setting on the ESP32 side weas configure to be from 5 to 10, we can directly set the received value as the new PWM duty cycle, as a 50Hz PWM signal should have duty cycle between 5 to 10 if we want the HIGH part of the signal to be within 1 ms to 2 ms. 
+With the Bluetooth connection established, we needed to decide how to send and interpret data. Our remote controller includes a joystick for continuous speed control and three buttons for preset speeds: brake, half speed, and full speed. When the joystick moves upward along the Y-axis, increasing the Y_out value, the skateboard should accelerate, meaning we must increase the PWM duty cycle. Conversely, when the joystick returns to its neutral position, the skateboard should decelerate. The buttons are used to set and maintain specific speeds.
+
+Since the joystick provides continuous analog readings that change frequently, we decided to poll the input pin and map its value to speeds based on predefined thresholds. For the buttons, we employed interrupts, as button presses are less frequent. Each button was connected to a GPIO pin with pull-up resistors, and we monitored falling edges to trigger the corresponding interrupt service routines.
+
+With this setup, the controller continuously sends updated speed values based on joystick movements and button presses.
+
+On the Raspberry Pi side, we received 800 bytes of data from the Bluetooth channel at once and decoded it in UTF-8 format. Since the speed setting on the ESP32 ranges from 5 to 10, we directly mapped the received value to the PWM duty cycle. For a 50Hz PWM signal, a duty cycle range of 5% to 10% ensures a HIGH duration between 1 ms to 2 ms.
+
+We tested the setup by running Bluetooth scripts on both the ESP32 and Raspberry Pi simultaneously. The results were successful: we successfully controlled the motor, demonstrating a working Bluetooth communication system between the two microcontrollers.
+
+<div style="display: flex; justify-content: space-between;">
+  <video width="480" height="360" controls>
+    <source src="{{ BASE_PATH }}/assets/images/blog/bluetooth_skateboard.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+
+  <video width="480" height="360" controls>
+    <source src="{{ BASE_PATH }}/assets/images/blog/bluetooth_controller.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+### Obstacle detcection
+
+One of the unique features of our skateboad is that it supports obstacle detection and warning. This is particularly useful in outdoor rides as anything can pop up in front and it would be much safer if the user could be warned. To detect objects ahead, we mounted an HC-SR04 ultrasonic sensor at the head of the skateboard and have it continuoulsy send out ultrasonic pulses to detect obstacles in range. and the receiver waits for the echo of that pulse to bounce back from an obstacle. By calculating the time it takes for the sound to travel to the object and back, the sensor determines the distance. The formula used is Distance = (Time x Speed of Sound) / 2.
+
+
+
+
+
+
