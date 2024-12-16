@@ -53,7 +53,7 @@ After several rounds of testing, we unfortunately burned one of the gate drivers
 
 ## Restarting
 
-With the newly-arrived ESC, we were quickly able to start running our motor. The subsequent development of our project could be separated into three different parts based on functionality: (1)Bluetooth communication between controller and skatebaord, (2) Obstacle detcection, and (3) Smart power-on. A high-level overview of our system is presented below.
+With the newly-arrived ESC, we were quickly able to start running our motor. The subsequent development of our project could be separated into three different parts based on functionality: (1)Bluetooth communication between controller and skatebaord, (2) Obstacle detcection, and (3) Smart power-on. 
 
 ### Bluetooth communication
 The first objective for our skateboard was to receive speed information from the controller and adjust the PWM signal to the motor to control its speed. Since we decided to use an ESP32 as the remote controller and a Raspberry Pi mounted on the skateboard, we needed a reliable wireless communication method compatible with both microcontrollers. After evaluating connection distance and network requirements, we chose Bluetooth.
@@ -62,15 +62,13 @@ We began by configuring the ESP32 as the master device, utilizing the BluetoothS
 
 With the Bluetooth connection established, we needed to decide how to send and interpret data. Our remote controller includes a joystick for continuous speed control and three buttons for preset speeds: brake, half speed, and full speed. When the joystick moves upward along the Y-axis, increasing the Y_out value, the skateboard should accelerate, meaning we must increase the PWM duty cycle. Conversely, when the joystick returns to its neutral position, the skateboard should decelerate. The buttons are used to set and maintain specific speeds.
 
-Since the joystick provides continuous analog readings that change frequently, we decided to poll the input pin and map its value to speeds based on predefined thresholds. For the buttons, we employed interrupts, as button presses are less frequent. Each button was connected to a GPIO pin with pull-up resistors, and we monitored falling edges to trigger the corresponding interrupt service routines.
-
-With this setup, the controller continuously sends updated speed values based on joystick movements and button presses.
+Since the joystick provides continuous analog readings that change frequently, we decided to poll the input pin and map its value to speeds based on predefined thresholds. For the buttons, we employed interrupts, as button presses are less frequent. Each button was connected to a GPIO pin with pull-up resistors, and we monitored falling edges to trigger the corresponding interrupt service routines. With this setup, the controller continuously sends updated speed values based on joystick movements and button presses.
 
 On the Raspberry Pi side, we received 800 bytes of data from the Bluetooth channel at once and decoded it in UTF-8 format. Since the speed setting on the ESP32 ranges from 5 to 10, we directly mapped the received value to the PWM duty cycle. For a 50Hz PWM signal, a duty cycle range of 5% to 10% ensures a HIGH duration between 1 ms to 2 ms.
 
 We tested the setup by running Bluetooth scripts on both the ESP32 and Raspberry Pi simultaneously. The results were successful: we successfully controlled the motor, demonstrating a working Bluetooth communication system between the two microcontrollers.
 
-<div style="display: flex; justify-content: space-between;">
+<!-- <div style="display: flex; justify-content: space-between;">
   <video width="480" height="360" controls>
     <source src="{{ BASE_PATH }}/assets/images/blog/bluetooth_skateboard.mp4" type="video/mp4">
     Your browser does not support the video tag.
@@ -80,14 +78,43 @@ We tested the setup by running Bluetooth scripts on both the ESP32 and Raspberry
     <source src="{{ BASE_PATH }}/assets/images/blog/bluetooth_controller.mp4" type="video/mp4">
     Your browser does not support the video tag.
   </video>
-</div>
+</div> -->
 
 ### Obstacle detcection
 
-One of the unique features of our skateboad is that it supports obstacle detection and warning. This is particularly useful in outdoor rides as anything can pop up in front and it would be much safer if the user could be warned. To detect objects ahead, we mounted an HC-SR04 ultrasonic sensor at the head of the skateboard and have it continuoulsy send out ultrasonic pulses to detect obstacles in range. and the receiver waits for the echo of that pulse to bounce back from an obstacle. By calculating the time it takes for the sound to travel to the object and back, the sensor determines the distance. The formula used is Distance = (Time x Speed of Sound) / 2.
+One of the standout features of our skateboard is its ability to detect obstacles and provide warnings. This is particularly useful for outdoor rides, as unexpected objects can appear in the path, and early warnings enhance user safety. To achieve this, we mounted an HC-SR04 ultrasonic sensor at the front of the skateboard. The sensor continuously emits ultrasonic pulses to detect obstacles ahead. The receiver waits for the echo to bounce back, and by measuring the time it takes for the pulse to travel to and from the obstacle, the sensor calculates the distance.
+
+We implemented two warning mechanisms: a visual alert on the remote controller and an audible alarm via a buzzer mounted on the skateboard.
+
+To handle communication and ensure smooth operation, we utilized two threads on the Raspberry Pi. A communication thread handles receiving speed data from the controller and transmitting distance information back to it. To improve accuracy, we implemented a function to clean the distance data by filtering outliers and averaging over 10 samples. A distance calculation thread continuously collects samples, cleans the data, and updates the processed results. This design ensures that data processing does not interfere with real-time communication, preventing any delays. The remote controller displays a "DANGER" message on its LCD screen if an obstacle is detected within 80 cm of the skateboard.
+
+Additionally, we added a buzzer to provide audible warnings for nearby obstacles. One side of the buzzer is connected to ground, while the other is connected to a GPIO pin. The distance calculation thread triggers the buzzer if the average distance of obstacles over 10 samples is less than 1 meter. A PWM signal is sent to the buzzer, with the frequency inversely proportional to the distance. During testing, we observed that closer obstacles produced higher-frequency buzzing, while the buzzing slowed as the distance increased. To make the feature optional, we added a button on the controller to enable or disable the buzzer, allowing users to avoid constant noise in public spaces.
 
 
 
+  <!-- <video width="480" height="360" controls>
+    <source src="{{ BASE_PATH }}/assets/images/blog/buzzer.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video> -->
 
+### Smart power on
 
+To make our skateboard a bit fancier, we added an automatic power-on feature that activates when someone stands on it. This is achieved using two custom tactile sensors made from Adafruit’s tactile sensing sheets—one for each foot. We connected these in series to detect the combined weight from both feet. The principle is simple: when pressure is applied, the resistance of the sensing sheet changes. We used copper tape as electrodes and integrated the sensing sheets into a basic voltage divider circuit. By measuring the circuit’s output voltage, we can track resistance changes and know when someone is on the skateboard. An Arduino Nano is used to read the output voltage and, if the value crosses a preset threshold, it sends a signal to a relay that powers up the motor. We also thought it’d be smart (actually amusing) to add a weight indicator system for safety.  Two LEDs are mounted on the skateboard: one red and one green. When you step on the skateboard, the power turns on through the relay. If your weight is within the weight range, the green LED lights up, indicating you are safe to go. But if you’re over the limit, the red LED lights up—a gentle reminder that the skateboard has its limits. While demonstrating the function, someone joked that even our skateboard is judging us. But that’s not true! We intentionally set the “overweight” threshold so low that almost everybody will trigger the red LED. This turns the feature into more of a playful gag than a serious warning. Despite its dramatic flair, the skateboard can actually handle up to 70 kg just fine, as long as you give it a little push to get started. Additionally, we also implemented a physical button on the skateboard so that no matter if there is someone standing on the skateboard, you can always turn on it manually.
 
+  <!-- <video width="480" height="360" controls>
+    <source src="{{ BASE_PATH }}/assets/images/blog/tactile.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video> -->
+
+## Putting everything together
+
+With all desired features implemented, we began testing the complete system and assembled everything in place. To make the skateboard fully untethered, we mounted a power bank beneath the Raspberry Pi to keep it powered. We then wrote a bash script to enable Bluetooth, run the necessary communication scripts, and set it to execute automatically at startup using cron. During testing, we discovered that the Bluetooth connection wouldn't establish at startup because the Bluetooth module required extra time to initialize. To address this, we added a delay by putting the processor to sleep for a short period before running the script. However, the connection remained somewhat unstable, occasionally requiring us to manually intervene by SSHing into the Pi and restarting the script.
+
+Although not perfect, our skateboard was finally operational, and we conducted extensive testing ourselves. The remote control worked smoothly, and the speed was quite impressive. However, we noticed a significant drawback: the braking was too abrupt, which could throw the user off balance. Unfortunately, due to the limited speed options in our design, there was little we could do to fine-tune the braking performance.
+
+Now, sit back, relax, and watch as our skateboard roars down the hallway!
+
+  <!-- <video width="480" height="360" controls>
+    <source src="{{ BASE_PATH }}/assets/images/blog/ride.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video> -->
