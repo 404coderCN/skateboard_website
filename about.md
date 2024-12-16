@@ -18,8 +18,6 @@ keywords: html, css, markdown, jekyll, docs, jekyllthemes, theme
 ---
 {% include JB/setup %}
 
-<!--more-->
-
 # About
 
 This is the final project for the Embedded OS class at Cornell University. Our project involves building a fully functional electric skateboard capable of speed control, obstacle detection, and smart power on mechanism through tactile sensors. The skateboard is driven by a powerful brushless motor controlled by an ESC. An onboard Raspberry Pi receives speed control messages via Bluetooth from a remote controller to adjust the supply PWM signal to the ESC. A separate circuit on the board monitors the change in voltage as a result of external pressure on the tactile sensor. As the voltage passes a certain threshold, an Arduino nano switches on a relay to power on the brushless motor. Additionally, an ultrasonic sensor is mounted at the front to detect and give out obstacle warnings. 
